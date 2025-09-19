@@ -157,7 +157,23 @@ function init(socket, externalCtx) {
       runWhenReady(() => {
         try {
           mediaEl.currentTime = Math.max(0, adjustedPosition);
-          mediaEl.play().catch(e => console.warn("play() err:", e));
+          mediaEl.play().then(() => {
+            console.log(`[join-audio] Successfully started at synced position: ${mediaEl.currentTime.toFixed(2)}s`);
+            
+            // Verificación adicional después de un breve delay
+            setTimeout(() => {
+              const finalDelay = Date.now() - data.serverTime;
+              const expectedFinalPos = data.position + (finalDelay / 1000);
+              const actualPos = mediaEl.currentTime;
+              const finalDrift = Math.abs(actualPos - expectedFinalPos);
+              
+              if (finalDrift > 0.3) {
+                console.log(`[join-audio] Post-play correction: expected=${expectedFinalPos.toFixed(2)}s, actual=${actualPos.toFixed(2)}s`);
+                mediaEl.currentTime = Math.max(0, expectedFinalPos);
+              }
+            }, 150);
+            
+          }).catch(e => console.warn("play() err:", e));
         } catch (e) {
           console.warn("[join-audio] sync play error:", e);
           // Fallback: solicitar estado actual del servidor
@@ -232,7 +248,45 @@ function init(socket, externalCtx) {
         console.log("[join-audio] State sync: original pos=", position.toFixed(2), "s, network delay=", networkDelay, "ms, synced pos=", syncedPosition.toFixed(2), "s");
       }
       
-      loadUrl(url, { autoplay: !!isPlaying, position: syncedPosition });
+      // Cargar y reproducir con mejor sincronización
+      loadUrl(url, { 
+        autoplay: false, // No auto-reproducir, lo haremos manualmente para mejor control
+        position: 0 
+      }).then(() => {
+        if (isPlaying) {
+          // Recalcular posición tras la carga
+          const finalNetworkDelay = Date.now() - serverTime;
+          const finalSyncedPosition = Math.max(0, position + (finalNetworkDelay / 1000));
+          
+          runWhenReady(() => {
+            try {
+              mediaEl.currentTime = finalSyncedPosition;
+              console.log(`[join-audio] Starting playback at precisely synced position: ${finalSyncedPosition.toFixed(2)}s`);
+              
+              mediaEl.play().then(() => {
+                // Verificación post-reproducción después de un breve delay
+                setTimeout(() => {
+                  const actualPos = mediaEl.currentTime;
+                  const expectedPos = finalSyncedPosition + 0.2; // 200ms que pasaron
+                  const postDrift = Math.abs(actualPos - expectedPos);
+                  
+                  if (postDrift > 0.5) {
+                    console.log(`[join-audio] Post-play correction needed: actual=${actualPos.toFixed(2)}s, expected=${expectedPos.toFixed(2)}s`);
+                    mediaEl.currentTime = Math.max(0, expectedPos);
+                  }
+                }, 200);
+              }).catch(e => {
+                console.error("[join-audio] Failed to start synced playback:", e);
+              });
+            } catch (e) {
+              console.error("[join-audio] Failed to set synced position:", e);
+            }
+          });
+        }
+      }).catch(e => {
+        console.error("[join-audio] Failed to load track for sync:", e);
+      });
+      
     } else if (isPlaying) {
       console.warn("[join-audio] Estado dice playing pero sin URL, re-solicitando estado");
       socketRef.emit?.("music:requestState");
@@ -244,7 +298,7 @@ function init(socket, externalCtx) {
     console.log("[join-audio] Position update:", position.toFixed(2), "s");
     
     runWhenReady(() => {
-      // Solo ajustar si hay una diferencia significativa (reducido a 0.5 segundos)
+      // Solo ajustar si hay una diferencia significativa (reducido a 0.3 segundos)
       const currentPos = mediaEl.currentTime || 0;
       
       // Calcular posición esperada considerando latencia de red
@@ -252,14 +306,19 @@ function init(socket, externalCtx) {
       const expectedPos = position + (networkDelay / 1000);
       const drift = Math.abs(currentPos - expectedPos);
       
-      // Reducir tolerancia para mejor sincronización
-      if (drift > 0.5 && !mediaEl.paused) {
+      // Tolerancia más estricta para mejor sincronización
+      if (drift > 0.3 && !mediaEl.paused) {
         console.log(`[join-audio] Correcting drift: current=${currentPos.toFixed(2)}s, expected=${expectedPos.toFixed(2)}s, drift=${drift.toFixed(2)}s, network=${networkDelay}ms`);
         try {
-          mediaEl.currentTime = Math.max(0, expectedPos);
+          // Aplicar una pequeña corrección adicional para compensar el tiempo de procesamiento
+          const correctedPos = Math.max(0, expectedPos + 0.05);
+          mediaEl.currentTime = correctedPos;
+          console.log(`[join-audio] Applied position correction to: ${correctedPos.toFixed(2)}s`);
         } catch (e) {
           console.warn("[join-audio] Failed to correct position drift:", e);
         }
+      } else if (drift <= 0.3 && !mediaEl.paused) {
+        console.log(`[join-audio] Sync OK: drift=${drift.toFixed(2)}s (under 0.3s tolerance)`);
       }
     });
   });

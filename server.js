@@ -41,14 +41,17 @@ function startMusicHeartbeat() {
           // Enviar update de posición a todos en la sala
           io.to(`room:${eventId}`).emit("music:positionUpdate", {
             position: currentPos,
-            serverTime: Date.now()
+            serverTime: Date.now(),
+            // Agregar información adicional para mejor sincronización
+            startTime: state.startTime,
+            initialPosition: state.position
           });
           
           console.log(`[MUSIC HEARTBEAT] room:${eventId} pos=${currentPos.toFixed(2)}s (${socketsInRoom.size} clients)`);
         }
       }
     }
-  }, 2000); // Cada 2 segundos (reducido de 5)
+  }, 1000); // Cada 1 segundo (reducido de 2)
 }
 
 // Iniciar el heartbeat
@@ -538,10 +541,13 @@ io.on("connection", (socket) => {
       ...state,
       position: currentPosition,
       // Añadir timestamp del servidor para sincronización adicional
-      serverTime: Date.now()
+      serverTime: Date.now(),
+      // Información extra para sincronización precisa
+      startTime: state.startTime,
+      initialPosition: state.isPlaying ? state.position : currentPosition
     };
     
-    console.log(`[MUSIC] Sending synced state to ${socket.id}: pos=${currentPosition.toFixed(2)}s, playing=${state.isPlaying}`);
+    console.log(`[MUSIC] Sending synced state to ${socket.id}: pos=${currentPosition.toFixed(2)}s, playing=${state.isPlaying}, startTime=${state.startTime}`);
     
     socket.emit("music:state", syncedState);
   });
