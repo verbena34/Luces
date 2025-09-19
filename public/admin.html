@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Panel de Control — LightShow</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <style>
+      .panel {
+        max-width: 780px;
+        margin: 24px auto;
+        padding: 16px;
+        border: 1px solid #444;
+        border-radius: 12px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+        align-items: end;
+      }
+      .qrbox {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      #preview {
+        width: 320px;
+        height: 180px;
+        border-radius: 10px;
+        border: 1px solid #333;
+        background: #000;
+      }
+      .muted-kbd {
+        font-family: monospace;
+        background: #222;
+        border: 1px solid #444;
+        border-radius: 8px;
+        padding: 2px 6px;
+      }
+
+      /* Botonera de escenas */
+      .scene-group {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .scene-btn {
+        padding: 8px 12px;
+        border: 1px solid #555;
+        border-radius: 8px;
+        background: #1e1e1e;
+        cursor: pointer;
+        user-select: none;
+      }
+      .scene-btn.active {
+        outline: 2px solid #5ac8ff;
+        border-color: #5ac8ff;
+      }
+
+      /* Music section styles */
+      #music-panel {
+        display: none;
+      }
+
+      #music-panel.visible {
+        display: block;
+      }
+
+      .track-list {
+        max-height: 200px;
+        overflow-y: auto;
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 8px;
+        padding: 8px;
+      }
+
+      .track-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px;
+        border-bottom: 1px solid #333;
+        cursor: pointer;
+      }
+
+      .track-item:hover {
+        background: #252525;
+      }
+
+      .track-item.active {
+        background: #2a2a5a;
+      }
+
+      #toggle-music-panel {
+        background-color: #2a2a4a;
+        color: white;
+        border: 1px solid #444;
+        border-radius: 8px;
+        padding: 8px;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+      }
+
+      #toggle-music-panel:hover {
+        background-color: #3a3a5a;
+      }
+
+      #track-name {
+        font-weight: bold;
+        margin-bottom: 6px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <h1>Panel de Control</h1>
+      <p class="muted">
+        Evento: <code id="eventoLabel">—</code> · <span id="stats">0 viewers · 0 admins</span> ·
+        <span id="connStatus">🔌 …</span>
+      </p>
+
+      <section class="panel">
+        <div class="grid">
+          <div>
+            <label>Escena</label>
+            <div class="scene-group" id="sceneGroup">
+              <button class="scene-btn active" data-scene="solid">Solid</button>
+              <button class="scene-btn" data-scene="pulse">Pulse</button>
+              <button class="scene-btn" data-scene="strobe">Strobe</button>
+              <button class="scene-btn" data-scene="wave">Wave</button>
+              <button class="scene-btn" data-scene="rainbow">Rainbow</button>
+              <button class="scene-btn" data-scene="waveDual">Wave Dual</button>
+              <button class="scene-btn" data-scene="scanner">Scanner</button>
+              <button class="scene-btn" data-scene="text">Texto</button>
+            </div>
+            <div style="margin-top: 12px">
+              <button id="toggle-music-panel" style="width: 100%">🎵 Abrir panel de música</button>
+            </div>
+          </div>
+
+          <!-- Standard controls (visible for all scenes) -->
+          <div id="standard-controls">
+            <label>
+              Color
+              <input type="color" id="color" value="#00c8ff" />
+            </label>
+
+            <label>
+              Velocidad
+              <input type="range" id="speed" min="0.2" max="3" step="0.1" value="1" />
+            </label>
+
+            <label>
+              Intensidad
+              <input type="range" id="intensity" min="0" max="1" step="0.05" value="1" />
+            </label>
+          </div>
+
+          <!-- Text scene specific controls (hidden by default) -->
+          <div id="text-controls" style="display: none">
+            <label>
+              Mensaje
+              <input
+                type="text"
+                id="textMsg"
+                maxlength="120"
+                placeholder="Escribe el mensaje..."
+                value="¡Bienvenidos!"
+              />
+            </label>
+
+            <label>
+              Color texto
+              <input type="color" id="textFg" value="#ffffff" />
+            </label>
+
+            <label>
+              Color fondo
+              <input type="color" id="textBg" value="#000000" />
+            </label>
+
+            <label>
+              Opacidad fondo
+              <input type="range" id="textBgAlpha" min="0" max="1" step="0.05" value="0.8" />
+            </label>
+
+            <label>
+              Alineación
+              <select id="textAlign">
+                <option value="top">Arriba</option>
+                <option value="center" selected>Centro</option>
+                <option value="bottom">Abajo</option>
+              </select>
+            </label>
+
+            <label>
+              Animación
+              <select id="textAnim">
+                <option value="none">Sin animación</option>
+                <option value="fade" selected>Fade</option>
+                <option value="slide">Slide</option>
+                <option value="zoom">Zoom</option>
+                <option value="type">Typewriter</option>
+                <option value="ticker">Ticker</option>
+              </select>
+            </label>
+          </div>
+
+          <label>
+            <input type="checkbox" id="countIn" checked />
+            Count-in (3s)
+          </label>
+        </div>
+
+        <div class="row" style="margin-top: 12px">
+          <button id="play">▶️ Play</button>
+          <button id="stop">⏹️ Stop</button>
+          <button id="resetAll">🔁 Reset</button>
+          <button id="testFlash">⚡ Test flash</button>
+        </div>
+
+        <hr style="margin: 16px 0; border-color: #333" />
+
+        <div class="row" style="gap: 16px; flex-wrap: wrap">
+          <div>
+            <p class="muted">Preview local:</p>
+            <canvas id="preview" width="640" height="360"></canvas>
+          </div>
+          <div class="qrbox">
+            <div>
+              <p class="muted">Link público:</p>
+              <div class="row">
+                <code id="joinUrl"></code>
+                <button id="copyLink">📋 Copiar</button>
+              </div>
+              <p class="muted" style="margin-top: 8px">
+                Atajos: <span class="muted-kbd">Space</span> play ·
+                <span class="muted-kbd">Esc</span> stop
+              </p>
+            </div>
+            <canvas id="qr"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- Music Section -->
+      <section class="panel" id="music-panel">
+        <h2>Música</h2>
+
+        <!-- File Upload -->
+        <div class="row">
+          <div>
+            <label for="track-upload">Subir archivo de audio:</label>
+            <input
+              type="file"
+              id="track-upload"
+              accept="audio/mpeg,audio/ogg,audio/wav,audio/mp4,audio/x-m4a"
+            />
+          </div>
+          <button id="upload-track-btn">Subir</button>
+          <div id="upload-status" class="muted"></div>
+        </div>
+
+        <hr style="margin: 12px 0; border-color: #333" />
+
+        <!-- Track List -->
+        <div>
+          <h3>Tracks disponibles</h3>
+          <div id="track-list" class="track-list">
+            <p class="muted">No hay tracks subidos</p>
+          </div>
+        </div>
+
+        <hr style="margin: 12px 0; border-color: #333" />
+
+        <!-- Playback Controls -->
+        <div>
+          <h3>Controles</h3>
+          <div class="row">
+            <button id="music-play-btn" disabled>▶️ Play</button>
+            <button id="music-pause-btn" disabled>⏸️ Pause</button>
+            <button id="music-stop-btn" disabled>⏹️ Stop</button>
+          </div>
+
+          <div class="grid" style="margin-top: 12px">
+            <!-- Track Info and Seek -->
+            <div>
+              <p id="track-name" class="muted">No hay track seleccionado</p>
+              <div class="row">
+                <span id="current-time">0:00</span>
+                <input
+                  type="range"
+                  id="seek-slider"
+                  min="0"
+                  max="100"
+                  value="0"
+                  disabled
+                  style="flex: 1"
+                />
+                <span id="duration">0:00</span>
+              </div>
+            </div>
+
+            <!-- Volume -->
+            <div>
+              <label for="volume-control">
+                Volumen
+                <input type="range" id="volume-control" min="0" max="1" step="0.05" value="1" />
+              </label>
+            </div>
+
+            <div>
+              <label for="loop-control">
+                <input type="checkbox" id="loop-control" />
+                Repetir
+              </label>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
+    <!-- expone el eventId y adminKey a admin.js -->
+    <script type="module">
+      import { getParam } from "/js/util.js";
+      const eventId = getParam("e", "");
+      const adminKey = getParam("k", "");
+      if (!eventId) {
+        location.href = "/";
+      }
+      window.__EVENT_ID__ = eventId;
+      window.__ADMIN_KEY__ = adminKey;
+      document.getElementById("eventoLabel").textContent = eventId;
+
+      // Show admin status based on key presence
+      if (!adminKey) {
+        document.getElementById("connStatus").textContent = "⚠️ Sin clave admin";
+      }
+    </script>
+    <script type="module" src="/js/admin.js"></script>
+  </body>
+</html>

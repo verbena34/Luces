@@ -1,0 +1,40 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "server.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "public/**/*",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/socket.io/(.*)",
+      "dest": "server.js"
+    },
+    {
+      "src": "/uploads/(.*)",
+      "dest": "server.js"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "server.js"
+    },
+    {
+      "src": "/(.*\\.(js|css|html|ico|png|jpg|jpeg|gif|svg|mp3|wav|ogg|mp4|m4a))",
+      "dest": "/public/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "server.js"
+    }
+  ],
+  "functions": {
+    "server.js": {
+      "maxDuration": 30
+    }
+  }
+}

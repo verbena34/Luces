@@ -1,0 +1,29 @@
+{
+  "name": "lightshow",
+  "version": "1.0.0",
+  "description": "LightShow - Synchronized Light and Music Control System",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "vercel-build": "echo 'Build complete'",
+    "postinstall": "echo 'Dependencies installed'"
+  },
+  "keywords": ["lightshow", "music", "led", "synchronization"],
+  "author": "nesto",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "mime-types": "^3.0.1",
+    "multer": "^2.0.2",
+    "nanoid": "^5.1.5",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}

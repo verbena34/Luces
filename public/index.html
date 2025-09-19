@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LightShow — Crear evento</title>
+  <style>
+    body { margin: 0; background: #0b0b0b; color: #eee; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    .wrap { max-width: 680px; margin: 40px auto; padding: 16px; }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    input[type="text"] { padding:10px; border-radius:8px; border:1px solid #333; background:#111; color:#eee; width:280px; }
+    button { padding:10px 14px; border-radius:8px; border:1px solid #444; background:#1e1e1e; color:#eee; cursor:pointer; }
+    code { background:#111; padding:2px 6px; border:1px solid #333; border-radius:6px; }
+    .box { border:1px solid #333; border-radius:12px; padding:14px; margin-top:14px; }
+    canvas { background:#000; border:1px solid #333; border-radius:10px; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>Crear evento</h1>
+    <div class="row">
+      <input id="eventName" type="text" placeholder="Nombre del evento (ej. brenner)" />
+      <button id="create">Crear enlaces</button>
+      <button id="goAdmin" disabled>Ir a administración</button>
+    </div>
+
+    <div class="box">
+      <p><strong>Links generados</strong></p>
+      <p>Público: <code id="publicUrl">—</code></p>
+      <p>Admin: <code id="adminUrl">—</code></p>
+      <div class="row">
+        <button id="copyPublic" disabled>📋 Copiar público</button>
+        <button id="copyAdmin" disabled>📋 Copiar admin</button>
+      </div>
+      <div style="margin-top:10px">
+        <p>QR del público:</p>
+        <canvas id="qr" width="220" height="220"></canvas>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
+  <script type="module" src="/js/home.js"></script>
+</body>
+</html>
