@@ -120,14 +120,15 @@ function init(socket, externalCtx) {
     try { fn(); } catch (e) { console.error(e); }
   }
 
-  // 4) Suscripción de eventos (evitar duplicados si off existe)
-  if (typeof socket.off === "function") {
+    // 4) ★ Event listeners (limpiar todos los anteriores)
+  if (socket) {
     socket.off("music:load");
     socket.off("music:play");
     socket.off("music:pause");
     socket.off("music:seek");
     socket.off("music:volume");
     socket.off("music:state");
+    socket.off("music:positionUpdate");
   }
 
   socket.on("music:load", ({ url, autoplay, position }) => {
@@ -135,19 +136,57 @@ function init(socket, externalCtx) {
     loadUrl(url, { autoplay, position });
   });
 
-  socket.on("music:play", () => {
-    console.log("[join-audio] socket music:play");
+  socket.on("music:play", (data = {}) => {
+    console.log("[join-audio] socket music:play", data);
+    
     if (!mediaEl?.src) {
       console.warn("[join-audio] play sin src → pidiendo estado");
       socketRef.emit?.("music:requestState");
       return;
     }
-    play();
+    
+    // Si viene con información de sincronización, usar esa posición
+    if (data.position !== undefined && data.serverTime) {
+      // Calcular compensación de latencia de red (estimación simple)
+      const networkDelay = Date.now() - data.serverTime;
+      const adjustedPosition = data.position + (networkDelay / 1000);
+      
+      console.log("[join-audio] Syncing to position:", adjustedPosition.toFixed(2), "s (network delay:", networkDelay, "ms)");
+      
+      runWhenReady(() => {
+        try {
+          mediaEl.currentTime = Math.max(0, adjustedPosition);
+          mediaEl.play().catch(e => console.warn("play() err:", e));
+        } catch (e) {
+          console.warn("[join-audio] sync play error:", e);
+          // Fallback: solicitar estado actual del servidor
+          socketRef.emit?.("music:requestState");
+        }
+      });
+    } else {
+      // Reproducción sin sincronización (fallback)
+      play();
+    }
   });
 
-  socket.on("music:pause", () => {
-    console.log("[join-audio] socket music:pause");
-    pause();
+  socket.on("music:pause", (data = {}) => {
+    console.log("[join-audio] socket music:pause", data);
+    
+    // Si viene con posición sincronizada, ajustar antes de pausar
+    if (data.position !== undefined) {
+      runWhenReady(() => {
+        try {
+          mediaEl.currentTime = data.position;
+          pause();
+          console.log("[join-audio] Synced pause at position:", data.position.toFixed(2), "s");
+        } catch (e) {
+          console.warn("[join-audio] sync pause error:", e);
+          pause();
+        }
+      });
+    } else {
+      pause();
+    }
   });
 
   socket.on("music:seek", ({ time }) => {
@@ -160,14 +199,53 @@ function init(socket, externalCtx) {
     setVolume(volume ?? 1);
   });
 
-  socket.on("music:state", ({ url, isPlaying, position = 0, volume = 1 }) => {
-    console.log("[join-audio] socket music:state", { url, isPlaying, position, volume });
+  socket.on("music:state", (state = {}) => {
+    const { url, isPlaying, position = 0, volume = 1, serverTime } = state;
+    console.log("[join-audio] socket music:state", { url, isPlaying, position, volume, serverTime });
+    
     setVolume(volume);
+    
     if (url) {
-      loadUrl(url, { autoplay: !!isPlaying, position });
+      let syncedPosition = position;
+      
+      // Si está reproduciendo y tenemos timestamp del servidor, calcular posición sincronizada
+      if (isPlaying && serverTime) {
+        const networkDelay = Date.now() - serverTime;
+        const elapsedTime = networkDelay / 1000;
+        syncedPosition = Math.max(0, position + elapsedTime);
+        
+        console.log("[join-audio] State sync: original pos=", position.toFixed(2), "s, network delay=", networkDelay, "ms, synced pos=", syncedPosition.toFixed(2), "s");
+      }
+      
+      loadUrl(url, { autoplay: !!isPlaying, position: syncedPosition });
     } else if (isPlaying) {
+      console.warn("[join-audio] Estado dice playing pero sin URL, re-solicitando estado");
       socketRef.emit?.("music:requestState");
     }
+  });
+
+  // ===== NUEVO: Handler para updates periódicos de posición =====
+  socket.on("music:positionUpdate", ({ position, serverTime }) => {
+    console.log("[join-audio] Position update:", position.toFixed(2), "s");
+    
+    runWhenReady(() => {
+      // Solo ajustar si hay una diferencia significativa (más de 1 segundo)
+      const currentPos = mediaEl.currentTime || 0;
+      
+      // Calcular posición esperada considerando latencia de red
+      const networkDelay = Date.now() - serverTime;
+      const expectedPos = position + (networkDelay / 1000);
+      const drift = Math.abs(currentPos - expectedPos);
+      
+      if (drift > 1.0 && !mediaEl.paused) {
+        console.log(`[join-audio] Correcting drift: current=${currentPos.toFixed(2)}s, expected=${expectedPos.toFixed(2)}s, drift=${drift.toFixed(2)}s`);
+        try {
+          mediaEl.currentTime = Math.max(0, expectedPos);
+        } catch (e) {
+          console.warn("[join-audio] Failed to correct position drift:", e);
+        }
+      }
+    });
   });
 
   // 5) Avisar al Panel y pedir estado actual

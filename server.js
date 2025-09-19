@@ -26,8 +26,30 @@ function slugifyId(raw) {
 // Track catalog - in-memory storage by eventId
 const trackCatalog = new Map(); // Map<eventId, Array<{trackId, url, filename, size, uploadedAt}>>
 
-// ======== ESTADO DE REPRODUCCIÓN POR SALA ========
-const currentPlayback = new Map(); // Map<eventId, { url, isPlaying, position, volume, trackId, updatedAt }>
+// ======== SISTEMA DE HEARTBEAT PARA SINCRONIZACIÓN ========
+
+// Función para enviar updates periódicos de posición cuando está reproduciendo
+function startMusicHeartbeat() {
+  setInterval(() => {
+    for (const [eventId, state] of currentPlayback.entries()) {
+      if (state.isPlaying && state.url && state.startTime) {
+        const currentPos = getCurrentPosition(eventId);
+        
+        // Enviar update de posición a todos en la sala
+        io.to(`room:${eventId}`).emit("music:positionUpdate", {
+          position: currentPos,
+          serverTime: Date.now()
+        });
+        
+        console.log(`[MUSIC HEARTBEAT] room:${eventId} pos=${currentPos.toFixed(2)}s`);
+      }
+    }
+  }, 5000); // Cada 5 segundos
+}
+
+// Iniciar el heartbeat
+startMusicHeartbeat();
+const currentPlayback = new Map(); // Map<eventId, { url, isPlaying, position, volume, trackId, updatedAt, startTime }>
 
 function getPlayback(eventId) {
   if (!currentPlayback.has(eventId)) {
@@ -38,14 +60,47 @@ function getPlayback(eventId) {
       volume: 1,
       trackId: null,
       updatedAt: Date.now(),
+      startTime: null, // Timestamp cuando empezó la reproducción
     });
   }
   return currentPlayback.get(eventId);
 }
 
+// Nueva función para calcular la posición actual en tiempo real
+function getCurrentPosition(eventId) {
+  const state = getPlayback(eventId);
+  if (!state.isPlaying || !state.startTime) {
+    return state.position;
+  }
+  
+  // Calcular cuánto tiempo ha pasado desde que empezó
+  const elapsedMs = Date.now() - state.startTime;
+  const elapsedSec = elapsedMs / 1000;
+  
+  // Posición actual = posición inicial + tiempo transcurrido
+  return state.position + elapsedSec;
+}
+
 function setPlayback(eventId, patch) {
   const s = getPlayback(eventId);
   const next = { ...s, ...patch, updatedAt: Date.now() };
+  
+  // Si está empezando a reproducir, marcar el tiempo de inicio
+  if (patch.isPlaying === true && !s.isPlaying) {
+    next.startTime = Date.now();
+  }
+  
+  // Si está pausando, actualizar la posición actual
+  if (patch.isPlaying === false && s.isPlaying) {
+    next.position = getCurrentPosition(eventId);
+    next.startTime = null;
+  }
+  
+  // Si se hace seek, resetear tiempo de inicio
+  if (typeof patch.position === 'number') {
+    next.startTime = next.isPlaying ? Date.now() : null;
+  }
+  
   currentPlayback.set(eventId, next);
   return next;
 }
@@ -468,8 +523,23 @@ io.on("connection", (socket) => {
   socket.on("music:requestState", () => {
     const eventId = socket.data?.eventId;
     if (!eventId) return;
+    
     const state = getPlayback(eventId);
-    socket.emit("music:state", state);
+    
+    // Calcular la posición actual en tiempo real
+    const currentPosition = getCurrentPosition(eventId);
+    
+    // Enviar estado con posición sincronizada
+    const syncedState = {
+      ...state,
+      position: currentPosition,
+      // Añadir timestamp del servidor para sincronización adicional
+      serverTime: Date.now()
+    };
+    
+    console.log(`[MUSIC] Sending synced state to ${socket.id}: pos=${currentPosition.toFixed(2)}s, playing=${state.isPlaying}`);
+    
+    socket.emit("music:state", syncedState);
   });
 
   // ========= NUEVO: HANDLERS DEL PANEL (ADMIN) =========
@@ -503,9 +573,15 @@ io.on("connection", (socket) => {
     const eventId = socket.data?.eventId;
     if (!eventId) return;
 
-    setPlayback(eventId, { isPlaying: true });
-    io.to(`room:${eventId}`).emit("music:play");
-    console.log(`[MUSIC] play -> room:${eventId}`);
+    const state = setPlayback(eventId, { isPlaying: true });
+    
+    // Enviar comando con timestamp para sincronización
+    io.to(`room:${eventId}`).emit("music:play", {
+      serverTime: Date.now(),
+      position: state.position
+    });
+    
+    console.log(`[MUSIC] play -> room:${eventId} from position ${state.position.toFixed(2)}s`);
   });
 
   socket.on("panel:musicPause", () => {
@@ -513,9 +589,16 @@ io.on("connection", (socket) => {
     const eventId = socket.data?.eventId;
     if (!eventId) return;
 
-    setPlayback(eventId, { isPlaying: false });
-    io.to(`room:${eventId}`).emit("music:pause");
-    console.log(`[MUSIC] pause -> room:${eventId}`);
+    // Actualizar posición antes de pausar
+    const currentPos = getCurrentPosition(eventId);
+    const state = setPlayback(eventId, { isPlaying: false, position: currentPos });
+    
+    io.to(`room:${eventId}`).emit("music:pause", {
+      position: state.position,
+      serverTime: Date.now()
+    });
+    
+    console.log(`[MUSIC] pause -> room:${eventId} at position ${state.position.toFixed(2)}s`);
   });
 
   socket.on("panel:musicSeek", ({ time }) => {
