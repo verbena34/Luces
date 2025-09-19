@@ -127,6 +127,7 @@ function init(socket, externalCtx) {
     socket.off("music:pause");
     socket.off("music:seek");
     socket.off("music:volume");
+    socket.off("music:stop");
     socket.off("music:state");
     socket.off("music:positionUpdate");
   }
@@ -199,6 +200,20 @@ function init(socket, externalCtx) {
     setVolume(volume ?? 1);
   });
 
+  socket.on("music:stop", (data = {}) => {
+    console.log("[join-audio] socket music:stop", data);
+    
+    runWhenReady(() => {
+      try {
+        mediaEl.pause();
+        mediaEl.currentTime = 0;
+        console.log("[join-audio] Stopped and reset to position 0");
+      } catch (e) {
+        console.warn("[join-audio] stop error:", e);
+      }
+    });
+  });
+
   socket.on("music:state", (state = {}) => {
     const { url, isPlaying, position = 0, volume = 1, serverTime } = state;
     console.log("[join-audio] socket music:state", { url, isPlaying, position, volume, serverTime });
@@ -229,7 +244,7 @@ function init(socket, externalCtx) {
     console.log("[join-audio] Position update:", position.toFixed(2), "s");
     
     runWhenReady(() => {
-      // Solo ajustar si hay una diferencia significativa (más de 1 segundo)
+      // Solo ajustar si hay una diferencia significativa (reducido a 0.5 segundos)
       const currentPos = mediaEl.currentTime || 0;
       
       // Calcular posición esperada considerando latencia de red
@@ -237,8 +252,9 @@ function init(socket, externalCtx) {
       const expectedPos = position + (networkDelay / 1000);
       const drift = Math.abs(currentPos - expectedPos);
       
-      if (drift > 1.0 && !mediaEl.paused) {
-        console.log(`[join-audio] Correcting drift: current=${currentPos.toFixed(2)}s, expected=${expectedPos.toFixed(2)}s, drift=${drift.toFixed(2)}s`);
+      // Reducir tolerancia para mejor sincronización
+      if (drift > 0.5 && !mediaEl.paused) {
+        console.log(`[join-audio] Correcting drift: current=${currentPos.toFixed(2)}s, expected=${expectedPos.toFixed(2)}s, drift=${drift.toFixed(2)}s, network=${networkDelay}ms`);
         try {
           mediaEl.currentTime = Math.max(0, expectedPos);
         } catch (e) {

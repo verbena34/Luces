@@ -35,16 +35,20 @@ function startMusicHeartbeat() {
       if (state.isPlaying && state.url && state.startTime) {
         const currentPos = getCurrentPosition(eventId);
         
-        // Enviar update de posición a todos en la sala
-        io.to(`room:${eventId}`).emit("music:positionUpdate", {
-          position: currentPos,
-          serverTime: Date.now()
-        });
-        
-        console.log(`[MUSIC HEARTBEAT] room:${eventId} pos=${currentPos.toFixed(2)}s`);
+        // Solo enviar si hay sockets conectados en la sala
+        const socketsInRoom = io.sockets.adapter.rooms.get(`room:${eventId}`);
+        if (socketsInRoom && socketsInRoom.size > 0) {
+          // Enviar update de posición a todos en la sala
+          io.to(`room:${eventId}`).emit("music:positionUpdate", {
+            position: currentPos,
+            serverTime: Date.now()
+          });
+          
+          console.log(`[MUSIC HEARTBEAT] room:${eventId} pos=${currentPos.toFixed(2)}s (${socketsInRoom.size} clients)`);
+        }
       }
     }
-  }, 5000); // Cada 5 segundos
+  }, 2000); // Cada 2 segundos (reducido de 5)
 }
 
 // Iniciar el heartbeat
@@ -607,9 +611,33 @@ io.on("connection", (socket) => {
     if (!eventId) return;
 
     const pos = Number(time) || 0;
-    setPlayback(eventId, { position: pos });
-    io.to(`room:${eventId}`).emit("music:seek", { time: pos });
+    const state = setPlayback(eventId, { position: pos });
+    
+    io.to(`room:${eventId}`).emit("music:seek", { 
+      time: pos,
+      serverTime: Date.now() 
+    });
+    
     console.log(`[MUSIC] seek -> room:${eventId} pos=${pos}s`);
+  });
+
+  socket.on("panel:musicStop", () => {
+    if (socket.data?.role !== "admin") return;
+    const eventId = socket.data?.eventId;
+    if (!eventId) return;
+
+    // Detener y reiniciar a posición 0
+    const state = setPlayback(eventId, { 
+      isPlaying: false, 
+      position: 0,
+      startTime: null 
+    });
+    
+    io.to(`room:${eventId}`).emit("music:stop", {
+      serverTime: Date.now()
+    });
+    
+    console.log(`[MUSIC] stop -> room:${eventId}`);
   });
 
   socket.on("panel:musicVolume", ({ volume }) => {

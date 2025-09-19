@@ -236,7 +236,9 @@ function stopTrack() {
 
   audio.pause();
   audio.currentTime = 0;
-  socket.emit("music:stop");
+  
+  // Usar el nuevo sistema de paneles
+  socket.emit("panel:musicStop");
   updatePlaybackUI();
 }
 

@@ -18,6 +18,121 @@ import musicModule from "/js/music.js";
 // ---------- FLAG: desactivar wiring legacy del panel de música ----------
 const USE_LEGACY_MUSIC_WIRING = false;
 
+// ---------- PERSISTENCIA DE CONFIGURACIÓN ----------
+const STORAGE_KEY = 'lightshow_admin_config';
+
+function saveConfig() {
+  try {
+    const config = {
+      // Configuración de escena
+      currentScene: $("sceneSelect")?.value || "",
+      sceneColor: $("colorPicker")?.value || "#5ac8ff",
+      sceneSpeed: $("speedSlider")?.value || "1",
+      sceneIntensity: $("intensitySlider")?.value || "1",
+      
+      // Configuración de texto (si existe)
+      textInput: $("textInput")?.value || "",
+      textFg: $("textFg")?.value || "#ffffff", 
+      textBg: $("textBg")?.value || "#000000",
+      textBgAlpha: $("textBgAlpha")?.value || "0.8",
+      textAlign: $("textAlign")?.value || "center",
+      textAnim: $("textAnim")?.value || "none",
+      
+      // Panel de música abierto/cerrado
+      musicPanelVisible: $("music-panel")?.classList.contains("visible") || false,
+      
+      // Timestamp de guardado
+      savedAt: Date.now()
+    };
+    
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    console.log("[CONFIG] Configuración guardada:", config);
+  } catch (err) {
+    console.warn("[CONFIG] Error guardando configuración:", err);
+  }
+}
+
+function loadConfig() {
+  try {
+    const configStr = localStorage.getItem(STORAGE_KEY);
+    if (!configStr) return;
+    
+    const config = JSON.parse(configStr);
+    console.log("[CONFIG] Restaurando configuración:", config);
+    
+    // Restaurar configuración de escena
+    if (config.currentScene && $("sceneSelect")) {
+      $("sceneSelect").value = config.currentScene;
+    }
+    if (config.sceneColor && $("colorPicker")) {
+      $("colorPicker").value = config.sceneColor;
+    }
+    if (config.sceneSpeed && $("speedSlider")) {
+      $("speedSlider").value = config.sceneSpeed;
+      // Actualizar display si existe
+      const speedDisplay = document.querySelector("#speedSlider + .slider-value");
+      if (speedDisplay) speedDisplay.textContent = `${config.sceneSpeed}x`;
+    }
+    if (config.sceneIntensity && $("intensitySlider")) {
+      $("intensitySlider").value = config.sceneIntensity;
+      // Actualizar display si existe
+      const intensityDisplay = document.querySelector("#intensitySlider + .slider-value");
+      if (intensityDisplay) intensityDisplay.textContent = `${Math.round(config.sceneIntensity * 100)}%`;
+    }
+    
+    // Restaurar configuración de texto
+    if (config.textInput && $("textInput")) {
+      $("textInput").value = config.textInput;
+    }
+    if (config.textFg && $("textFg")) {
+      $("textFg").value = config.textFg;
+    }
+    if (config.textBg && $("textBg")) {
+      $("textBg").value = config.textBg;
+    }
+    if (config.textBgAlpha && $("textBgAlpha")) {
+      $("textBgAlpha").value = config.textBgAlpha;
+    }
+    if (config.textAlign && $("textAlign")) {
+      $("textAlign").value = config.textAlign;
+    }
+    if (config.textAnim && $("textAnim")) {
+      $("textAnim").value = config.textAnim;
+    }
+    
+    // Restaurar estado del panel de música
+    if (config.musicPanelVisible && $("music-panel")) {
+      $("music-panel").classList.add("visible");
+      const toggleBtn = $("toggle-music-panel");
+      if (toggleBtn) toggleBtn.textContent = "🎵 Cerrar panel de música";
+    }
+    
+  } catch (err) {
+    console.warn("[CONFIG] Error cargando configuración:", err);
+  }
+}
+
+// Guardar configuración automáticamente cuando cambia algo
+function setupAutoSave() {
+  const inputsToWatch = [
+    "sceneSelect", "colorPicker", "speedSlider", "intensitySlider",
+    "textInput", "textFg", "textBg", "textBgAlpha", "textAlign", "textAnim"
+  ];
+  
+  inputsToWatch.forEach(id => {
+    const element = $(id);
+    if (element) {
+      element.addEventListener("input", () => {
+        // Debounce para evitar demasiados saves
+        clearTimeout(element._saveTimeout);
+        element._saveTimeout = setTimeout(saveConfig, 500);
+      });
+      
+      element.addEventListener("change", saveConfig);
+    }
+  });
+}
+
 // ---------- helpers ----------
 function $(id) {
   const element = document.getElementById(id);
@@ -424,6 +539,17 @@ try {
     try {
       // Initialize the music module once the DOM is fully loaded
       musicModule.init(socket);
+      
+      // ======== INICIALIZAR PERSISTENCIA DE CONFIGURACIÓN ========
+      console.log("[CONFIG] Inicializando sistema de persistencia");
+      loadConfig();        // Cargar configuración guardada
+      setupAutoSave();     // Configurar guardado automático
+      
+      // Guardar configuración al cerrar/refrescar la página
+      window.addEventListener("beforeunload", saveConfig);
+      
+      // Guardar configuración periódicamente (cada 30 segundos)
+      setInterval(saveConfig, 30000);
 
       // ======== PANEL DE MÚSICA (Admin → Server → Join) ========
       // 🔇 Desactivado: dejamos que /js/music.js maneje todo.
@@ -475,6 +601,9 @@ try {
             musicPanel.classList.add("visible");
             musicToggleBtn.textContent = "🎵 Cerrar panel de música";
           }
+          
+          // Guardar configuración después del toggle
+          saveConfig();
         });
       } else {
         if (!musicToggleBtn) errorHandler.logError("DOM", "Elemento toggle-music-panel no encontrado");
