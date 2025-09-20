@@ -205,8 +205,14 @@ const FACTORY = {
     };
   },
 
-  // --- TEXT: usar el módulo premium igual que admin ---
-  text: sceneText(ctx, canvas),
+  // --- TEXT: crear instancia del módulo premium igual que admin ---
+  text: (payload) => {
+    console.log('[join] Texto recibido:', payload);
+    const textRenderer = sceneText(ctx, canvas);
+    const result = textRenderer(payload);
+    console.log('[join] Renderer de texto creado:', typeof result);
+    return result;
+  },
 };
 
 // ======== loop global de animación (controlado) ========
@@ -222,13 +228,17 @@ function frame(now) {
 }
 
 function renderScene(payload) {
+  console.log('[join] renderScene called with:', payload);
   cancelAnimationFrame(rafId);
   startT = 0;
   clearScene();
 
   const name = payload?.name || "solid";
+  console.log('[join] Scene name:', name);
   const factory = FACTORY[name] || FACTORY.solid;
+  console.log('[join] Factory found:', typeof factory);
   draw = factory(payload);
+  console.log('[join] Draw function created:', typeof draw);
 
   rafId = requestAnimationFrame(frame);
 }

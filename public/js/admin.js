@@ -23,6 +23,12 @@ const STORAGE_KEY = 'lightshow_admin_config';
 
 function saveConfig() {
   try {
+    // Verificar si estamos en el contexto correcto antes de guardar
+    if (!document.body) {
+      console.log("[CONFIG] DOM no está listo, saltando guardado");
+      return;
+    }
+    
     const config = {
       // Configuración de escena
       currentScene: $("sceneSelect")?.value || "",
@@ -136,8 +142,17 @@ function setupAutoSave() {
 // ---------- helpers ----------
 function $(id) {
   const element = document.getElementById(id);
-  if (!element && id !== "stats" && id !== "latency") { // Estos IDs podrían ser opcionales
-    errorHandler.logError("DOM", `Elemento con ID '${id}' no encontrado en el DOM`);
+  if (!element) {
+    // Lista de elementos opcionales que no deben generar errores
+    const optionalElements = [
+      "stats", "latency", "sceneSelect", "colorPicker", "speedSlider", 
+      "intensitySlider", "textInput", "textFg", "textBg", "textBgAlpha", 
+      "textAlign", "textAnim", "music-panel"
+    ];
+    
+    if (!optionalElements.includes(id)) {
+      errorHandler.logError("DOM", `Elemento con ID '${id}' no encontrado en el DOM`);
+    }
   }
   return element;
 }
@@ -542,14 +557,27 @@ try {
       
       // ======== INICIALIZAR PERSISTENCIA DE CONFIGURACIÓN ========
       console.log("[CONFIG] Inicializando sistema de persistencia");
-      loadConfig();        // Cargar configuración guardada
-      setupAutoSave();     // Configurar guardado automático
+      
+      // Esperar a que el DOM esté completamente listo antes de configurar auto-save
+      if (document.readyState === 'complete') {
+        loadConfig();
+        setupAutoSave();
+      } else {
+        window.addEventListener('load', () => {
+          loadConfig();
+          setupAutoSave();
+        });
+      }
       
       // Guardar configuración al cerrar/refrescar la página
       window.addEventListener("beforeunload", saveConfig);
       
-      // Guardar configuración periódicamente (cada 30 segundos)
-      setInterval(saveConfig, 30000);
+      // Guardar configuración periódicamente (cada 30 segundos), pero solo si el DOM está listo
+      setInterval(() => {
+        if (document.readyState === 'complete') {
+          saveConfig();
+        }
+      }, 30000);
 
       // ======== PANEL DE MÚSICA (Admin → Server → Join) ========
       // 🔇 Desactivado: dejamos que /js/music.js maneje todo.
