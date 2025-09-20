@@ -573,6 +573,13 @@ function handleUserGesture(ev) {
     joinAudio.init(socket, injectedCtx);
   } catch (e) {
     console.error("Error inicializando audio:", e);
+    // Mostrar error amigable al usuario en móvil
+    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobile) {
+      alert("Error de audio en móvil. Por favor:\n1. Usa Chrome o Safari\n2. Habilita audio en el navegador\n3. Conecta auriculares\n4. Refresca la página");
+    } else {
+      alert("Error inicializando audio. Intenta refrescar la página.");
+    }
   } finally {
     // Animar salida de la pantalla de bienvenida
     welcomeScreen.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
@@ -591,4 +598,25 @@ function handleUserGesture(ev) {
 }
 
 joinBtn.addEventListener("click", handleUserGesture, { once: true });
+
+// Agregar soporte táctil mejorado para móvil
+joinBtn.addEventListener("touchstart", handleUserGesture, { once: true });
+
+// Detectar si es móvil para logs específicos
+const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+console.log('[join] Device type:', isMobile ? 'Mobile' : 'Desktop');
+
+// Verificar orientación en móvil
+if (isMobile) {
+  const handleOrientationChange = () => {
+    setTimeout(() => {
+      fitCanvas();
+      console.log('[join] Orientation changed, canvas refitted');
+    }, 100);
+  };
+  
+  window.addEventListener('orientationchange', handleOrientationChange);
+  window.addEventListener('resize', handleOrientationChange);
+}
+
 // (Quitamos pointerdown/keydown globales para máxima confiabilidad)

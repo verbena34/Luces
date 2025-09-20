@@ -97,14 +97,21 @@ function init(socket, externalCtx) {
   }
   ctx = externalCtx;
 
-  // 2) Elemento de audio + grafo WebAudio (todo síncrono)
+  // 2) Elemento de audio + grafo WebAudio (todo síncrono) - optimizado para móvil
   if (!mediaEl) {
     mediaEl = new Audio();
     mediaEl.preload = "auto";
-    mediaEl.playsInline = true; // iOS
+    mediaEl.playsInline = true; // iOS crítico
     mediaEl.muted = false;      // ya hubo gesto
     mediaEl.volume = 1.0;
+    
+    // Configuraciones adicionales para móvil
+    mediaEl.crossOrigin = "anonymous";
+    mediaEl.setAttribute('webkit-playsinline', ''); // iOS legacy
+    mediaEl.setAttribute('playsinline', ''); // Asegurar inline play
+    
     attachMediaDebug(mediaEl);
+    console.log('[join-audio] Audio element created with mobile optimizations');
   }
   if (!mediaSrc) {
     mediaSrc = ctx.createMediaElementSource(mediaEl);
