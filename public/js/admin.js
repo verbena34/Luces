@@ -3,12 +3,10 @@
 // ---------- IMPORTA MANEJADOR DE ERRORES ----------
 import reportError from "./errorHandler.js";  // <- relativo, MISMO directorio
 // ---------- IMPORTA ESCENAS DESDE MÓDULOS ----------
-import { scenePulse } from "/js/scenas/pulse.js";
 import { sceneRainbow } from "/js/scenas/rainbow.js";
 import { sceneScanner } from "/js/scenas/scanner.js";
 import { sceneSolid } from "/js/scenas/solid.js";
 import { sceneStrobe } from "/js/scenas/strobe.js";
-import { sceneText } from "/js/scenas/text.js";
 import { sceneWave } from "/js/scenas/wave.js";
 import { sceneWaveDual } from "/js/scenas/waveDual.js";
 
@@ -35,14 +33,6 @@ function saveConfig() {
       sceneColor: $("colorPicker")?.value || "#5ac8ff",
       sceneSpeed: $("speedSlider")?.value || "1",
       sceneIntensity: $("intensitySlider")?.value || "1",
-      
-      // Configuración de texto (si existe)
-      textInput: $("textInput")?.value || "",
-      textFg: $("textFg")?.value || "#ffffff", 
-      textBg: $("textBg")?.value || "#000000",
-      textBgAlpha: $("textBgAlpha")?.value || "0.8",
-      textAlign: $("textAlign")?.value || "center",
-      textAnim: $("textAnim")?.value || "none",
       
       // Panel de música abierto/cerrado
       musicPanelVisible: $("music-panel")?.classList.contains("visible") || false,
@@ -86,26 +76,6 @@ function loadConfig() {
       if (intensityDisplay) intensityDisplay.textContent = `${Math.round(config.sceneIntensity * 100)}%`;
     }
     
-    // Restaurar configuración de texto
-    if (config.textInput && $("textInput")) {
-      $("textInput").value = config.textInput;
-    }
-    if (config.textFg && $("textFg")) {
-      $("textFg").value = config.textFg;
-    }
-    if (config.textBg && $("textBg")) {
-      $("textBg").value = config.textBg;
-    }
-    if (config.textBgAlpha && $("textBgAlpha")) {
-      $("textBgAlpha").value = config.textBgAlpha;
-    }
-    if (config.textAlign && $("textAlign")) {
-      $("textAlign").value = config.textAlign;
-    }
-    if (config.textAnim && $("textAnim")) {
-      $("textAnim").value = config.textAnim;
-    }
-    
     // Restaurar estado del panel de música
     if (config.musicPanelVisible && $("music-panel")) {
       $("music-panel").classList.add("visible");
@@ -121,8 +91,7 @@ function loadConfig() {
 // Guardar configuración automáticamente cuando cambia algo
 function setupAutoSave() {
   const inputsToWatch = [
-    "sceneSelect", "colorPicker", "speedSlider", "intensitySlider",
-    "textInput", "textFg", "textBg", "textBgAlpha", "textAlign", "textAnim"
+    "sceneSelect", "colorPicker", "speedSlider", "intensitySlider"
   ];
   
   inputsToWatch.forEach(id => {
@@ -146,8 +115,7 @@ function $(id) {
     // Lista de elementos opcionales que no deben generar errores
     const optionalElements = [
       "stats", "latency", "sceneSelect", "colorPicker", "speedSlider", 
-      "intensitySlider", "textInput", "textFg", "textBg", "textBgAlpha", 
-      "textAlign", "textAnim", "music-panel"
+      "intensitySlider", "music-panel"
     ];
     
     if (!optionalElements.includes(id)) {
@@ -304,13 +272,11 @@ try {
 
   try {
     PREVIEW.solid = sceneSolid(pCtx, pCanvas);
-    PREVIEW.pulse = scenePulse(pCtx, pCanvas);
     PREVIEW.strobe = sceneStrobe(pCtx, pCanvas);
     PREVIEW.wave = sceneWave(pCtx, pCanvas);
     PREVIEW.rainbow = sceneRainbow(pCtx, pCanvas);
     PREVIEW.waveDual = sceneWaveDual(pCtx, pCanvas);
     PREVIEW.scanner = sceneScanner(pCtx, pCanvas);
-    PREVIEW.text = sceneText(pCtx, pCanvas);
   } catch (err) {
     errorHandler.logError("Scene module initialization", err);
   }
@@ -322,12 +288,8 @@ try {
   // Function to toggle visibility of scene-specific controls
   function toggleControlPanels() {
     try {
-      const isTextScene = currentScene === "text";
       const standardControls = $("standard-controls");
-      const textControls = $("text-controls");
-
-      if (standardControls) standardControls.style.display = isTextScene ? "none" : "block";
-      if (textControls) textControls.style.display = isTextScene ? "block" : "none";
+      if (standardControls) standardControls.style.display = "block";
     } catch (err) {
       errorHandler.logError("Control panel toggle", err);
     }
@@ -372,21 +334,8 @@ try {
         name: currentScene,
         speed: parseFloat($("speed")?.value || 1),
         intensity: parseFloat($("intensity")?.value || 1),
+        color: $("color")?.value || "#00c8ff"
       };
-
-      // Standard scene payload
-      if (currentScene !== "text") {
-        payload.color = $("color")?.value || "#00c8ff";
-      }
-      // Text scene payload
-      else {
-        payload.text = ($("textMsg")?.value || "").slice(0, 120).trim();
-        payload.fg = $("textFg")?.value || "#ffffff";
-        payload.bg = $("textBg")?.value || "#000000";
-        payload.bgAlpha = parseFloat($("textBgAlpha")?.value || 0.8);
-        payload.align = $("textAlign")?.value || "center";
-        payload.anim = $("textAnim")?.value || "fade";
-      }
 
       return payload;
     } catch (err) {

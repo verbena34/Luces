@@ -131,13 +131,11 @@
             <label>Escena</label>
             <div class="scene-group" id="sceneGroup">
               <button class="scene-btn active" data-scene="solid">Solid</button>
-              <button class="scene-btn" data-scene="pulse">Pulse</button>
               <button class="scene-btn" data-scene="strobe">Strobe</button>
               <button class="scene-btn" data-scene="wave">Wave</button>
               <button class="scene-btn" data-scene="rainbow">Rainbow</button>
               <button class="scene-btn" data-scene="waveDual">Wave Dual</button>
               <button class="scene-btn" data-scene="scanner">Scanner</button>
-              <button class="scene-btn" data-scene="text">Texto</button>
             </div>
             <div style="margin-top: 12px">
               <button id="toggle-music-panel" style="width: 100%">🎵 Abrir panel de música</button>
@@ -159,56 +157,6 @@
             <label>
               Intensidad
               <input type="range" id="intensity" min="0" max="1" step="0.05" value="1" />
-            </label>
-          </div>
-
-          <!-- Text scene specific controls (hidden by default) -->
-          <div id="text-controls" style="display: none">
-            <label>
-              Mensaje
-              <input
-                type="text"
-                id="textMsg"
-                maxlength="120"
-                placeholder="Escribe el mensaje..."
-                value="¡Bienvenidos!"
-              />
-            </label>
-
-            <label>
-              Color texto
-              <input type="color" id="textFg" value="#ffffff" />
-            </label>
-
-            <label>
-              Color fondo
-              <input type="color" id="textBg" value="#000000" />
-            </label>
-
-            <label>
-              Opacidad fondo
-              <input type="range" id="textBgAlpha" min="0" max="1" step="0.05" value="0.8" />
-            </label>
-
-            <label>
-              Alineación
-              <select id="textAlign">
-                <option value="top">Arriba</option>
-                <option value="center" selected>Centro</option>
-                <option value="bottom">Abajo</option>
-              </select>
-            </label>
-
-            <label>
-              Animación
-              <select id="textAnim">
-                <option value="none">Sin animación</option>
-                <option value="fade" selected>Fade</option>
-                <option value="slide">Slide</option>
-                <option value="zoom">Zoom</option>
-                <option value="type">Typewriter</option>
-                <option value="ticker">Ticker</option>
-              </select>
             </label>
           </div>
 
