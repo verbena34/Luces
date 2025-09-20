@@ -1,6 +1,7 @@
 // public/js/join.js (ES module)
 
 import joinAudio from "/js/join-audio.js"; // ← módulo de audio
+import { sceneText } from "/js/scenas/text.js"; // ← módulo de texto premium
 
 const canvas = document.getElementById("stage");
 const ctx = canvas.getContext("2d");
@@ -204,89 +205,8 @@ const FACTORY = {
     };
   },
 
-  // --- TEXT: centrado óptico usando métricas reales + animaciones ---
-  text: (p) => {
-    const msg = (p.text || "").trim() || "LightShow";
-    const [br,bg,bb] = hexToRGB(p.bg || "#000000");
-    const [fr,fgc,fb] = hexToRGB(p.fg || "#ffffff");
-    const bgAlpha = Number.isFinite(p.bgAlpha) ? p.bgAlpha : 0.8;
-    const speed = p.speed || 1;
-    const align = (p.align || "center");
-
-    function computeFont(text) {
-      const maxPx = Math.min(canvas.width, canvas.height) * 0.22;
-      let size = maxPx;
-      ctx.font = `700 ${size}px system-ui, Arial, sans-serif`;
-      let w = ctx.measureText(text).width;
-      const target = canvas.width * 0.85;
-      while (w > target && size > 18) {
-        size -= 2;
-        ctx.font = `700 ${size}px system-ui, Arial, sans-serif`;
-        w = ctx.measureText(text).width;
-      }
-      return size;
-    }
-
-    let typedCount = 0;
-
-    return (ts) => {
-      const w = canvas.width, h = canvas.height;
-      ctx.fillStyle = `rgba(${br},${bg},${bb},${bgAlpha})`;
-      ctx.fillRect(0,0,w,h);
-
-      const anim = (p.anim || "none");
-      const baseSize = computeFont(msg);
-
-      ctx.font = `700 ${baseSize}px system-ui, Arial, sans-serif`;
-      const mt = ctx.measureText(msg);
-      const ascent  = mt.actualBoundingBoxAscent  ?? baseSize * 0.8;
-      const descent = mt.actualBoundingBoxDescent ?? baseSize * 0.2;
-      const textHeight = ascent + descent;
-
-      // Y según alineación
-      let centerY;
-      if (align === "top") {
-        centerY = textHeight / 2 + baseSize * 0.25;
-      } else if (align === "bottom") {
-        centerY = h - textHeight / 2 - baseSize * 0.25;
-      } else {
-        centerY = h / 2; // centro exacto del canvas
-      }
-
-      let alpha = 1, offsetX = 0, scale = 1;
-      let textToDraw = msg;
-
-      if (anim === "fade") {
-        alpha = 0.35 + 0.65 * (Math.sin(ts * 0.004 * speed) * 0.5 + 0.5);
-      } else if (anim === "slide") {
-        offsetX = Math.sin(ts * 0.003 * speed) * w * 0.08;
-      } else if (anim === "zoom") {
-        scale = 1 + Math.sin(ts * 0.0028 * speed) * 0.12;
-      } else if (anim === "type") {
-        const cps = 12 * speed;
-        typedCount = Math.min(msg.length, Math.floor((ts/1000) * cps));
-        textToDraw = msg.slice(0, typedCount);
-      } else if (anim === "ticker") {
-        ctx.textAlign = "left";
-        ctx.textBaseline = "middle";
-        const textWidth = ctx.measureText(msg).width;
-        const x = w - ((ts * 0.15 * speed) % (textWidth + w));
-        ctx.fillStyle = `rgba(${fr},${fgc},${fb},1)`;
-        ctx.fillText(msg, x, h/2);
-        return;
-      }
-
-      // Dibujo centrado real
-      ctx.save();
-      ctx.translate(w/2 + offsetX, centerY);
-      ctx.scale(scale, scale);
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillStyle = `rgba(${fr},${fgc},${fb},${alpha})`;
-      ctx.fillText(textToDraw, 0, 0);
-      ctx.restore();
-    };
-  },
+  // --- TEXT: usar el módulo premium igual que admin ---
+  text: sceneText(ctx, canvas),
 };
 
 // ======== loop global de animación (controlado) ========
